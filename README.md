@@ -53,7 +53,7 @@ The server starts on `http://localhost:5000` (or the `PORT` from your `.env`).
 | Variable       | Description                                             | Default   |
 | -------------- | ------------------------------------------------------- | --------- |
 | `PORT`         | Port the server listens on                              | `5000`    |
-| `JWT_SECRET`   | Secret used to sign JWTs (**set in prod**)              | dev value |
+| `JWT_SECRET`   | Secret used to sign JWTs (**required** — app won't start without it) | —     |
 | `DATABASE_URL` | Postgres connection string                              | —         |
 | `DATABASE_SSL` | Set to `true` for managed Postgres that requires SSL    | `false`   |
 

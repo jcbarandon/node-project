@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 // Use an in-memory Postgres (pg-mem). Must be set before app (and db) are imported.
 process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test-secret';
 
 let request;
 let app;
