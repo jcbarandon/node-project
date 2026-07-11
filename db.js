@@ -13,4 +13,12 @@ db.exec(`
     )
 `);
 
+db.exec(`
+    CREATE TABLE IF NOT EXISTS accounts (
+        id       TEXT PRIMARY KEY,
+        email    TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL
+    )
+`);
+
 export default db;
