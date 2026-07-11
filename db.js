@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 
-const db = new Database('data.db');
+// DB_FILE lets tests point at an in-memory database (':memory:').
+const db = new Database(process.env.DB_FILE || 'data.db');
 
 // Enforce foreign keys and use a faster, safer write mode.
 db.pragma('journal_mode = WAL');
