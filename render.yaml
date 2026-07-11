@@ -1,5 +1,9 @@
 # Render Blueprint. In the Render dashboard: New > Blueprint, then point it at this repo.
 # Docs: https://render.com/docs/blueprint-spec
+databases:
+  - name: node-project-db
+    plan: free
+
 services:
   - type: web
     name: node-project
@@ -8,19 +12,16 @@ services:
     buildCommand: npm install
     startCommand: npm start
     envVars:
+      # Render injects the managed Postgres connection string here.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: node-project-db
+          property: connectionString
+      # Internal Render Postgres connections don't need SSL.
+      - key: DATABASE_SSL
+        value: false
       # Render generates a strong random value and keeps it stable across deploys.
       - key: JWT_SECRET
         generateValue: true
       - key: NODE_VERSION
         value: 22
-    # NOTE: the free plan has an ephemeral filesystem, so the SQLite file (data.db)
-    # is wiped on every deploy/restart. For durable data, attach a persistent disk
-    # (paid) and point DB_FILE at it, or migrate to a hosted Postgres database:
-    #
-    # disk:
-    #   name: data
-    #   mountPath: /var/data
-    #   sizeGB: 1
-    # envVars:
-    #   - key: DB_FILE
-    #     value: /var/data/data.db

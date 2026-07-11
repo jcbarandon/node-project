@@ -1,8 +1,8 @@
 import { test, before, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-// Use a throwaway in-memory DB. Must be set before app (and db) are imported.
-process.env.DB_FILE = ':memory:';
+// Use an in-memory Postgres (pg-mem). Must be set before app (and db) are imported.
+process.env.NODE_ENV = 'test';
 
 let request;
 let app;
@@ -10,6 +10,8 @@ let app;
 before(async () => {
     request = (await import('supertest')).default;
     app = (await import('../app.js')).default;
+    const { initDb } = await import('../db.js');
+    await initDb();
 });
 
 describe('POST /auth/register', () => {

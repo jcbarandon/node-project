@@ -13,4 +13,10 @@ app.use("/auth", authRoutes);
 app.use("/people", auth, usersRoutes);
 app.get("/", (req, res) => res.send("Hi I'm Joe Barandon and Welcome to my API!"));
 
+// Central error handler — catches errors forwarded by asyncHandler.
+app.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
+});
+
 export default app;

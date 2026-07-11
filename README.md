@@ -1,22 +1,30 @@
 # node-project
 
-A small REST API built with **Express** and **SQLite**, featuring JWT authentication.
+A small REST API built with **Express** and **Postgres**, featuring JWT authentication.
 It manages a collection of "people" (users with a name and age), protected behind
 register/login endpoints.
 
 ## Features
 
-- CRUD API for people, backed by SQLite (data persists across restarts)
+- CRUD API for people, backed by Postgres
 - JWT authentication — passwords hashed with bcrypt
 - Protected routes via auth middleware
-- Test suite using Node's built-in test runner + supertest
+- Test suite using Node's built-in test runner + supertest (runs against in-memory Postgres — no server needed)
 - Environment-based config, ready to deploy on Render
 
 ## Tech stack
 
-Express · better-sqlite3 · jsonwebtoken · bcryptjs · dotenv · supertest
+Express · pg (Postgres) · jsonwebtoken · bcryptjs · dotenv · supertest · pg-mem (tests)
 
 ## Getting started
+
+You need a running Postgres database. Locally you can create one with:
+
+```bash
+createdb node_project
+```
+
+Then:
 
 ```bash
 # 1. Install dependencies
@@ -24,8 +32,10 @@ npm install
 
 # 2. Create your environment file
 cp .env.example .env
-# then edit .env and set a real JWT_SECRET, e.g.:
-#   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+# then edit .env:
+#   - set DATABASE_URL to your Postgres connection string
+#   - set a real JWT_SECRET, e.g.:
+#       node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 # 3. Run in development (auto-restarts on change)
 npm run dev
@@ -34,15 +44,18 @@ npm run dev
 npm start
 ```
 
+The tables are created automatically on startup.
+
 The server starts on `http://localhost:5000` (or the `PORT` from your `.env`).
 
 ## Environment variables
 
-| Variable     | Description                                  | Default   |
-| ------------ | -------------------------------------------- | --------- |
-| `PORT`       | Port the server listens on                   | `5000`    |
-| `JWT_SECRET` | Secret used to sign JWTs (**set in prod**)   | dev value |
-| `DB_FILE`    | Path to the SQLite database file             | `data.db` |
+| Variable       | Description                                             | Default   |
+| -------------- | ------------------------------------------------------- | --------- |
+| `PORT`         | Port the server listens on                              | `5000`    |
+| `JWT_SECRET`   | Secret used to sign JWTs (**set in prod**)              | dev value |
+| `DATABASE_URL` | Postgres connection string                              | —         |
+| `DATABASE_SSL` | Set to `true` for managed Postgres that requires SSL    | `false`   |
 
 ## API
 
@@ -118,19 +131,19 @@ curl http://localhost:5000/people -H "Authorization: Bearer $TOKEN"
 npm test
 ```
 
-Runs the suite against an in-memory SQLite database (`DB_FILE=:memory:`), so your
-real `data.db` is never touched.
+Runs the suite against an in-memory Postgres (`pg-mem`), so no database server is
+required and your real database is never touched.
 
 ## Deployment (Render)
 
-This repo includes a [`render.yaml`](render.yaml) Blueprint.
+This repo includes a [`render.yaml`](render.yaml) Blueprint that provisions both the
+web service and a managed Postgres database.
 
 1. In the Render dashboard: **New → Blueprint** and point it at this repo.
-2. Render generates a strong `JWT_SECRET` automatically.
+2. Render creates the Postgres database, injects `DATABASE_URL`, and generates a
+   strong `JWT_SECRET` automatically.
 
-> ⚠️ The free plan has an ephemeral filesystem, so the SQLite file is wiped on every
-> deploy/restart. For durable data, attach a persistent disk (see the commented
-> example in `render.yaml`) or migrate to a hosted Postgres database.
+Data persists in the managed Postgres database across deploys and restarts.
 
 ## Project structure
 
@@ -138,9 +151,9 @@ This repo includes a [`render.yaml`](render.yaml) Blueprint.
 index.js              Server entry point (loads env, starts listening)
 app.js                Express app (routes + middleware), exported for tests
 config.js             JWT secret / expiry
-db.js                 SQLite connection and schema
+db.js                 Postgres connection pool and schema (initDb)
 routes/               Route definitions (auth, users)
 controllers/          Request handlers (auth, users)
-middleware/auth.js    JWT verification middleware
+middleware/           JWT verification + async error wrapper
 tests/                Test suite (auth, people)
 ```

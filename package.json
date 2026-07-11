@@ -17,14 +17,15 @@
   "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.11.1",
     "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
+    "pg": "^8.22.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9",
+    "pg-mem": "^3.0.14",
     "supertest": "^7.2.2"
   }
 }

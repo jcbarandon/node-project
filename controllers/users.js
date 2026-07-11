@@ -1,40 +1,43 @@
 import { v4 as uuid } from 'uuid';
 
-import db from '../db.js';
+import pool from '../db.js';
 
-export const getUsers = (req, res) => {
-    const users = db.prepare('SELECT * FROM users').all();
-    res.status(200).json(users);
+export const getUsers = async (req, res) => {
+    const { rows } = await pool.query('SELECT * FROM users');
+    res.status(200).json(rows);
 };
 
-export const createUser = (req, res) => {
+export const createUser = async (req, res) => {
     const { username, age } = req.body;
 
     if (!username || age === undefined) {
         return res.status(400).json({ message: 'username and age are required' });
     }
 
-    const user = { id: uuid(), username, age };
-    db.prepare('INSERT INTO users (id, username, age) VALUES (?, ?, ?)').run(user.id, user.username, user.age);
+    const id = uuid();
+    const { rows } = await pool.query(
+        'INSERT INTO users (id, username, age) VALUES ($1, $2, $3) RETURNING *',
+        [id, username, age]
+    );
 
     console.log(`User [${username}] added to the database.`);
-    res.status(201).json(user);
+    res.status(201).json(rows[0]);
 };
 
-export const getUser = (req, res) => {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+export const getUser = async (req, res) => {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
 
-    if (!user) {
+    if (rows.length === 0) {
         return res.status(404).json({ message: `User with id ${req.params.id} not found` });
     }
 
-    res.status(200).json(user);
+    res.status(200).json(rows[0]);
 };
 
-export const deleteUser = (req, res) => {
-    const result = db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
+export const deleteUser = async (req, res) => {
+    const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
 
-    if (result.changes === 0) {
+    if (rowCount === 0) {
         return res.status(404).json({ message: `User with id ${req.params.id} not found` });
     }
 
@@ -42,21 +45,21 @@ export const deleteUser = (req, res) => {
     res.status(200).json({ message: `User with id ${req.params.id} deleted successfully` });
 };
 
-export const updateUser = (req, res) => {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+export const updateUser = async (req, res) => {
+    const existing = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
 
-    if (!user) {
+    if (existing.rows.length === 0) {
         return res.status(404).json({ message: `User with id ${req.params.id} not found` });
     }
 
+    const current = existing.rows[0];
     const { username, age } = req.body;
-    const updated = {
-        username: username ?? user.username,
-        age: age ?? user.age,
-    };
 
-    db.prepare('UPDATE users SET username = ?, age = ? WHERE id = ?').run(updated.username, updated.age, req.params.id);
+    const { rows } = await pool.query(
+        'UPDATE users SET username = $1, age = $2 WHERE id = $3 RETURNING *',
+        [username ?? current.username, age ?? current.age, req.params.id]
+    );
 
     console.log(`User with id ${req.params.id} has been updated.`);
-    res.status(200).json({ id: req.params.id, ...updated });
+    res.status(200).json(rows[0]);
 };
