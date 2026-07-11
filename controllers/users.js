@@ -1,8 +1,9 @@
 import { v4 as uuid } from 'uuid';
 
-let users = [];
+import db from '../db.js';
 
 export const getUsers = (req, res) => {
+    const users = db.prepare('SELECT * FROM users').all();
     res.status(200).json(users);
 };
 
@@ -14,14 +15,14 @@ export const createUser = (req, res) => {
     }
 
     const user = { id: uuid(), username, age };
-    users.push(user);
+    db.prepare('INSERT INTO users (id, username, age) VALUES (?, ?, ?)').run(user.id, user.username, user.age);
 
     console.log(`User [${username}] added to the database.`);
     res.status(201).json(user);
 };
 
 export const getUser = (req, res) => {
-    const user = users.find((user) => user.id === req.params.id);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
 
     if (!user) {
         return res.status(404).json({ message: `User with id ${req.params.id} not found` });
@@ -31,30 +32,31 @@ export const getUser = (req, res) => {
 };
 
 export const deleteUser = (req, res) => {
-    const user = users.find((user) => user.id === req.params.id);
+    const result = db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
 
-    if (!user) {
+    if (result.changes === 0) {
         return res.status(404).json({ message: `User with id ${req.params.id} not found` });
     }
-
-    users = users.filter((user) => user.id !== req.params.id);
 
     console.log(`User with id ${req.params.id} has been deleted.`);
     res.status(200).json({ message: `User with id ${req.params.id} deleted successfully` });
 };
 
 export const updateUser = (req, res) => {
-    const user = users.find((user) => user.id === req.params.id);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
 
     if (!user) {
         return res.status(404).json({ message: `User with id ${req.params.id} not found` });
     }
 
     const { username, age } = req.body;
+    const updated = {
+        username: username ?? user.username,
+        age: age ?? user.age,
+    };
 
-    if (username) user.username = username;
-    if (age !== undefined) user.age = age;
+    db.prepare('UPDATE users SET username = ?, age = ? WHERE id = ?').run(updated.username, updated.age, req.params.id);
 
     console.log(`User with id ${req.params.id} has been updated.`);
-    res.status(200).json(user);
+    res.status(200).json({ id: req.params.id, ...updated });
 };
