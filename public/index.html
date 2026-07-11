@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>People API</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --ok: #22c55e;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+        .wrap { max-width: 640px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+        h1 { font-size: 1.6rem; margin: 0 0 0.25rem; }
+        .sub { color: var(--muted); margin: 0 0 2rem; font-size: 0.9rem; }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        h2 { font-size: 1.1rem; margin: 0 0 1rem; }
+        label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+        input {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+        }
+        input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+        .row { display: flex; gap: 0.75rem; }
+        .row > div { flex: 1; }
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--accent);
+            color: white;
+            transition: background 0.15s;
+        }
+        button:hover { background: var(--accent-hover); }
+        button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        button.secondary:hover { background: var(--border); }
+        button.danger { background: var(--danger); }
+        button.danger:hover { background: var(--danger-hover); }
+        button.small { padding: 0.35rem 0.6rem; font-size: 0.8rem; }
+        .btn-row { display: flex; gap: 0.5rem; }
+        .person {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .person:last-child { border-bottom: none; }
+        .person .info { flex: 1; }
+        .person .name { font-weight: 600; }
+        .person .age { color: var(--muted); font-size: 0.85rem; }
+        .empty { color: var(--muted); font-style: italic; padding: 0.75rem 0; }
+        .toast {
+            position: fixed;
+            bottom: 1.25rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.25s;
+            pointer-events: none;
+            max-width: 90%;
+        }
+        .toast.show { opacity: 1; }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.ok { border-left-color: var(--ok); }
+        .hidden { display: none; }
+        .whoami { color: var(--muted); font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>People API</h1>
+        <p class="sub">A demo client for the Express + Postgres + JWT API.</p>
+
+        <!-- Auth -->
+        <div class="card" id="auth-card">
+            <h2>Sign in</h2>
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="you@example.com" autocomplete="username" />
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+            <div class="btn-row">
+                <button id="login-btn">Log in</button>
+                <button id="register-btn" class="secondary">Register</button>
+            </div>
+        </div>
+
+        <!-- App (shown when logged in) -->
+        <div id="app" class="hidden">
+            <div class="card">
+                <div class="person" style="border:none; padding:0;">
+                    <div class="info">
+                        <div class="name">Signed in</div>
+                        <div class="whoami" id="whoami"></div>
+                    </div>
+                    <button id="logout-btn" class="secondary small">Log out</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Add a person</h2>
+                <div class="row">
+                    <div>
+                        <label for="username">Name</label>
+                        <input id="username" type="text" placeholder="Jane" />
+                    </div>
+                    <div>
+                        <label for="age">Age</label>
+                        <input id="age" type="number" placeholder="30" />
+                    </div>
+                </div>
+                <button id="add-btn">Add person</button>
+            </div>
+
+            <div class="card">
+                <h2>People</h2>
+                <div id="people-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Served from the same origin as the API, so relative paths work
+        // both locally and on Render.
+        const API = "";
+        const tokenKey = "people_api_token";
+
+        const $ = (id) => document.getElementById(id);
+        let toastTimer;
+        function toast(msg, kind = "") {
+            const t = $("toast");
+            t.textContent = msg;
+            t.className = "toast show " + kind;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => (t.className = "toast " + kind), 2600);
+        }
+
+        function getToken() { return localStorage.getItem(tokenKey); }
+        function setToken(t) { localStorage.setItem(tokenKey, t); }
+        function clearToken() { localStorage.removeItem(tokenKey); }
+
+        // Decode the email out of the JWT payload (no verification, just display).
+        function emailFromToken(t) {
+            try { return JSON.parse(atob(t.split(".")[1])).email; }
+            catch { return ""; }
+        }
+
+        async function api(path, options = {}) {
+            const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+            const token = getToken();
+            if (token) headers["Authorization"] = "Bearer " + token;
+            const res = await fetch(API + path, { ...options, headers });
+            let body = null;
+            try { body = await res.json(); } catch { /* no body */ }
+            return { ok: res.ok, status: res.status, body };
+        }
+
+        // ---- Auth ----
+        async function register() {
+            const email = $("email").value.trim();
+            const password = $("password").value;
+            if (!email || !password) return toast("Email and password required", "error");
+            const { ok, body } = await api("/auth/register", { method: "POST", body: JSON.stringify({ email, password }) });
+            if (!ok) return toast(body?.message || "Registration failed", "error");
+            setToken(body.token);
+            toast("Account created", "ok");
+            showApp();
+        }
+
+        async function login() {
+            const email = $("email").value.trim();
+            const password = $("password").value;
+            if (!email || !password) return toast("Email and password required", "error");
+            const { ok, body } = await api("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+            if (!ok) return toast(body?.message || "Login failed", "error");
+            setToken(body.token);
+            toast("Logged in", "ok");
+            showApp();
+        }
+
+        function logout() {
+            clearToken();
+            $("app").classList.add("hidden");
+            $("auth-card").classList.remove("hidden");
+            toast("Logged out");
+        }
+
+        // ---- People ----
+        async function loadPeople() {
+            const { ok, status, body } = await api("/people");
+            if (status === 401) { toast("Session expired, please log in", "error"); return logout(); }
+            if (!ok) return toast("Failed to load people", "error");
+            renderPeople(body);
+        }
+
+        function renderPeople(people) {
+            const list = $("people-list");
+            if (!people.length) { list.innerHTML = '<div class="empty">No people yet — add one above.</div>'; return; }
+            list.innerHTML = "";
+            for (const p of people) {
+                const row = document.createElement("div");
+                row.className = "person";
+                const info = document.createElement("div");
+                info.className = "info";
+                info.innerHTML = `<div class="name"></div><div class="age"></div>`;
+                info.querySelector(".name").textContent = p.username;
+                info.querySelector(".age").textContent = "Age " + p.age;
+
+                const editBtn = document.createElement("button");
+                editBtn.className = "secondary small";
+                editBtn.textContent = "Edit";
+                editBtn.onclick = () => editPerson(p);
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "danger small";
+                delBtn.textContent = "Delete";
+                delBtn.onclick = () => deletePerson(p.id);
+
+                const btns = document.createElement("div");
+                btns.className = "btn-row";
+                btns.append(editBtn, delBtn);
+
+                row.append(info, btns);
+                list.append(row);
+            }
+        }
+
+        async function addPerson() {
+            const username = $("username").value.trim();
+            const age = $("age").value;
+            if (!username || age === "") return toast("Name and age required", "error");
+            const { ok, body } = await api("/people", { method: "POST", body: JSON.stringify({ username, age: Number(age) }) });
+            if (!ok) return toast(body?.message || "Failed to add", "error");
+            $("username").value = ""; $("age").value = "";
+            toast("Person added", "ok");
+            loadPeople();
+        }
+
+        async function editPerson(p) {
+            const username = prompt("Name:", p.username);
+            if (username === null) return;
+            const ageStr = prompt("Age:", p.age);
+            if (ageStr === null) return;
+            const { ok, body } = await api("/people/" + p.id, {
+                method: "PATCH",
+                body: JSON.stringify({ username: username.trim(), age: Number(ageStr) }),
+            });
+            if (!ok) return toast(body?.message || "Failed to update", "error");
+            toast("Updated", "ok");
+            loadPeople();
+        }
+
+        async function deletePerson(id) {
+            if (!confirm("Delete this person?")) return;
+            const { ok, body } = await api("/people/" + id, { method: "DELETE" });
+            if (!ok) return toast(body?.message || "Failed to delete", "error");
+            toast("Deleted", "ok");
+            loadPeople();
+        }
+
+        function showApp() {
+            $("auth-card").classList.add("hidden");
+            $("app").classList.remove("hidden");
+            $("whoami").textContent = emailFromToken(getToken());
+            loadPeople();
+        }
+
+        // Wire up events
+        $("login-btn").onclick = login;
+        $("register-btn").onclick = register;
+        $("logout-btn").onclick = logout;
+        $("add-btn").onclick = addPerson;
+        $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
+        $("age").addEventListener("keydown", (e) => { if (e.key === "Enter") addPerson(); });
+
+        // Auto-login if we already have a token
+        if (getToken()) showApp();
+    </script>
+</body>
+</html>
