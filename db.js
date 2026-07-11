@@ -16,6 +16,15 @@ if (process.env.NODE_ENV === 'test') {
     });
 }
 
+// Without this, an error on an idle pooled connection (e.g. the database
+// dropping the connection) is emitted as an unhandled 'error' event, which
+// crashes the Node process. pg-mem's pool may not be an EventEmitter, so guard.
+if (typeof pool.on === 'function') {
+    pool.on('error', (err) => {
+        console.error('Unexpected Postgres pool error:', err);
+    });
+}
+
 // Creates the tables if they don't already exist. Call once at startup.
 export async function initDb() {
     await pool.query(`
